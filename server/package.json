@@ -1,0 +1,31 @@
+{
+  "name": "nodechess-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --forceExit",
+    "start": "node index.js"
+  },
+  "author": "Fíla",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@okta/oidc-middleware": "^0.1.3",
+    "@okta/okta-sdk-nodejs": "^3.1.0",
+    "body-parser": "^1.19.0",
+    "chess.js": "^0.10.2",
+    "cors": "^2.8.5",
+    "errorhandler": "^1.5.1",
+    "express": "^4.17.1",
+    "express-generator": "^4.16.0",
+    "express-session": "^1.15.6",
+    "mongoose": "^5.7.12",
+    "morgan": "^1.9.1",
+    "passport": "^0.4.0",
+    "stockfish": "^10.0.2",
+    "sync": "^0.2.5"
+  },
+  "devDependencies": {
+    "jest": "^24.9.0"
+  }
+}

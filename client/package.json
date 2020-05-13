@@ -1,0 +1,14 @@
+{
+  "name": "nodechess-client",
+  "version": "1.0.0",
+  "description": "",
+  "main": "chess.js",
+  "scripts": {
+    "test": "node ../server/index.js"
+  },
+  "author": "Filip",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@chrisoakman/chessboardjs": "^1.0.0"
+  }
+}

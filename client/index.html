@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="node_modules/@chrisoakman/chessboardjs/dist/chessboard-1.0.0.min.css">
+  <style type="text/css">
+    body {
+      background:
+        linear-gradient(135deg, black 25%, transparent 25%) -50px 0,
+        linear-gradient(225deg, black 25%, transparent 25%) -50px 0,
+        linear-gradient(315deg, black 25%, transparent 25%),
+        linear-gradient(45deg, black 25%, transparent 25%);
+      background-size: 2em 2em;
+      background-color: #232323;
+    }
+
+    #status,
+    #fen,
+    #png,
+    #pos,
+    label {
+      color: white;
+    }
+
+    .highlight-white {
+      box-shadow: inset 0 0 3px 3px yellow;
+    }
+
+    .highlight-black {
+      box-shadow: inset 0 0 3px 3px blue;
+    }
+
+    .highlight-hint {
+      box-shadow: inset 0 0 3px 3px white;
+    }
+
+    .highlight-check {
+      box-shadow: inset 0 0 3px 3px red;
+    }
+
+    #myBoard {
+      position: absolute;
+      top: 50%;
+      left: 70%;
+      transform: translate(-50%, -50%);
+    }
+
+    .square {
+      height: 400px;
+      width: 600px;
+      background-color: #555;
+    }
+
+    .myButtons {
+      position: relative;
+      background-color: #44c767;
+      border-radius: 28px;
+      border: 1px solid #18ab29;
+      display: inline-block;
+      cursor: pointer;
+      color: #ffffff;
+      font-family: Arial;
+      font-size: 20px;
+      padding: 10px 12px;
+      text-decoration: none;
+      text-shadow: 0px 1px 0px #2f6627;
+    }
+
+    /* .puzzleCheck {
+      height: "60";
+      width: "80";
+      mix-blend-mode: multiply;
+      display: none;
+    } */
+
+    .myButtons:hover {
+      background-color: #5cbf2a;
+    }
+
+    .myButtons:active {
+      position: relative;
+      top: 1px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 style="font-size: 30px;font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;color: whitesmoke;">
+    myChess</h1>
+  <div class="square">
+    <tr>
+      <td>
+        <div id="myBoard" style="width: 750px"></div>
+        <button class='myButtons' id="goBack">
+          GO back </button>
+      </td>
+      <td>
+        <label>Status:</label>
+        <div id="status">White to move</div>
+      </td>
+      <td>
+        <label>FEN:</label>
+        <div id="fen">rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1</div>
+      </td>
+      <td>
+        <label>PGN:</label>
+        <div id="pgn"></div>
+      </td>
+      <td>
+        <img id="cross" src="img/cross.png" style="display: none;">
+        <img id="okay" src="img/okay.png" style="display: none;">
+      </td>
+    </tr>
+  </div>
+  <div>
+  <button class='myButtons' id="clearButton">Clear Board</button>
+  <button class='myButtons' id="startPos">Starting position</button>
+  <button class='myButtons' id="Puzzle">Start random puzzle</button>
+  <button class='myButtons' id="Hint">Hint</button>
+</div>
+
+
+  <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+  <script src="node_modules/@chrisoakman/chessboardjs/dist/chessboard-1.0.0.min.js"></script>
+  <script src="./chess.js"></script>
+
+  <script>
+    var board = null
+    var $board = $('#myBoard')
+    var whiteSquareGrey = '#a9a9a9'
+    var blackSquareGrey = '#696969'
+    var squareClass = 'square-55d63'
+    var squareToHighlight = null
+    var colorToHighlight = null
+    var $status = $('#status')
+    var $pos = $('#pos')
+    var $fen = $('#fen')
+    var $pgn = $('#pgn')
+    var puzzle
+    var game = new Chess()
+    var puzzleInProgress = false;
+    var number;
+    var counter = 0;
+    var cross = document.getElementById("cross");
+    var okay = document.getElementById("okay");
+
+    $.getJSON("fenpos.json", function (json) {
+      puzzle = json
+    });
+
+    function removeGreySquares() {
+      $('#myBoard .square-55d63').css('background', '')
+    }
+
+    function greySquare(square) {
+      var $square = $('#myBoard .square-' + square)
+      var background = whiteSquareGrey
+
+      if ($square.hasClass('black-3c85d')) {
+        background = blackSquareGrey
+      }
+      $square.css('background', background)
+    }
+    function removeHighlights(color) {
+      $board.find('.' + squareClass)
+        .removeClass('highlight-' + color)
+    }
+    function removeAllHighlights() {
+      $board.find('.' + squareClass)
+        .removeClass('highlight-check')
+        .removeClass('highlight-black')
+        .removeClass('highlight-white')
+        .removeClass('highlight-hint')
+    }
+
+    function onDragStart(source, piece, position, orientation) {
+
+      if (game.game_over()) return false
+      if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+        (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+        return false
+      }
+      console.log('Drag started:')
+      console.log('Source: ' + source)
+      console.log('Piece: ' + piece)
+      console.log('Position: ' + Chessboard.objToFen(position))
+      console.log('Orientation: ' + orientation)
+      console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+    }
+
+    function onDrop(source, target) {
+      //is it legal?
+      var move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q', //queen for now
+        verbose: true
+      })
+      //illegal move
+      if (move === null) return 'snapback'
+
+
+      if (!(number == null)) {
+
+        if (puzzleInProgress) {
+          console.log(puzzle.solutions[number][counter].toString().substring(0, 2), puzzle.solutions[number][counter].toString().substring(2, 4));
+          if (!(source == puzzle.solutions[number][counter].toString().substring(0, 2)) || (!(target == puzzle.solutions[number][counter].toString().substring(2, 4)))) {
+            console.log('move no good');
+            okay.style["display"] = "none";
+            cross.style["display"] = "block";
+            cross.style["width"] = "100px";
+            cross.style["height"] = "80px";
+            cross.style["mix-blend-mode"] = "multiply";
+            game.undo();
+          } else {
+            cross.style["display"] = "none";
+            okay.style["display"] = "block";
+            okay.style["width"] = "100px";
+            okay.style["height"] = "80px";
+            okay.style["mix-blend-mode"] = "multiply";
+            counter++;
+          }
+          if (counter % 2 == 1 && counter < 5) {
+            removeHighlights("hint")
+            game.move(puzzle.solutions[number][counter], { sloppy: true })
+            if (game.turn() == 'b') {
+              removeHighlights('check')
+              removeHighlights('white')
+              $board.find('.square-' + puzzle.solutions[number][counter].toString().substring(0, 2)).addClass('highlight-white')
+              $board.find('.square-' + puzzle.solutions[number][counter].toString().substring(2, 4)).addClass('highlight-white')
+            } else {
+              removeHighlights('check')
+              removeHighlights('black')
+              $board.find('.square-' + puzzle.solutions[number][counter].toString().substring(0, 2)).addClass('highlight-black')
+              $board.find('.square-' + puzzle.solutions[number][counter].toString().substring(2, 4)).addClass('highlight-black')
+            }
+            counter++;
+          }
+        }
+      }
+      if (game.turn() == 'b') {
+        removeHighlights('check')
+        removeHighlights('white')
+        $board.find('.square-' + source).addClass('highlight-white')
+        $board.find('.square-' + target).addClass('highlight-white')
+      } else {
+        removeHighlights('check')
+        removeHighlights('black')
+        $board.find('.square-' + source).addClass('highlight-black')
+        $board.find('.square-' + target).addClass('highlight-black')
+      }
+      updateStatus()
+    }
+
+    function onMouseoverSquare(square, piece) {
+      // get list of possible moves for this square
+      var moves = game.moves({
+        square: square,
+        verbose: true
+      })
+
+
+      // exit if there are no moves available for this square
+      if (moves.length === 0) return
+
+      // highlight the square they moused over
+      greySquare(square)
+
+      // highlight the possible squares for this piece
+      for (var i = 0; i < moves.length; i++) {
+        greySquare(moves[i].to)
+      }
+    }
+
+
+    function onMouseoutSquare(square, piece) {
+      removeGreySquares()
+    }
+
+
+    function updateStatus() {
+      var status = ''
+      var moveColor = 'White'
+      if (game.turn() === 'b') {
+        moveColor = 'Black'
+      }
+
+      // checkmate?
+      if (game.in_checkmate()) {
+        const kingsPos = game.getKings()
+        status = 'Game over, ' + moveColor + ' is in checkmate.'
+        if (moveColor === 'Black') {
+          $board.find('.square-' + game.getSquare(kingsPos.b)).addClass('highlight-check')
+        } else {
+          $board.find('.square-' + game.getSquare(kingsPos.w)).addClass('highlight-check')
+        }
+      }
+
+      // draw?
+      else if (game.in_draw()) {
+        status = 'Game over, drawn position'
+      }
+
+      // game still on
+      else {
+        status = moveColor + ' to move'
+
+        // check?
+        if (game.in_check()) {
+          const kingsPos = game.getKings()
+          status += ', ' + moveColor + ' is in check'
+          if (moveColor === 'Black') {
+            $board.find('.square-' + game.getSquare(kingsPos.b)).addClass('highlight-check')
+          } else {
+            $board.find('.square-' + game.getSquare(kingsPos.w)).addClass('highlight-check')
+          }
+        }
+      }
+      const kingsPos = game.getKings()
+      $status.html(status)
+      $pos.html(`white=${game.getSquare(kingsPos.w)} black=${game.getSquare(kingsPos.b)}`)
+      $fen.html(game.fen())
+      if (!puzzleInProgress) {
+        $pgn.html(game.pgn())
+      }
+      var history = game.history()
+    }
+
+    function onMoveEnd() {
+      $board.find('.square-' + squareToHighlight)
+        .addClass('highlight-' + colorToHighlight)
+    }
+    function onSnapEnd() {
+      board.position(game.fen())
+    }
+    function loadPuzzle() {
+      console.log(puzzle.posfen.length, puzzle.solutions.length)
+      number = (Math.floor(Math.random() * puzzle.posfen.length));
+      var randomPuzzle = puzzle.posfen[number];
+      counter = 0;
+      puzzleInProgress = true;
+      //uz neni potreba, ale pro jistotu
+      if (game.load(randomPuzzle)) {
+        board.position(randomPuzzle)
+      } else {
+        console.log('invalid position number:', randomPuzzle)
+        window.setTimeout(loadPuzzle(), 1000)
+      }
+      updateStatus();
+    }
+    var config = {
+      draggable: true,
+      position: 'start',
+      onDragStart: onDragStart,
+      onDrop: onDrop,
+      sparePieces: false,
+      onSnapEnd: onSnapEnd,
+      onMoveEnd: onMoveEnd,
+      onMouseoutSquare: onMouseoutSquare,
+      onMouseoverSquare: onMouseoverSquare
+    }
+    board = Chessboard('myBoard', config);
+
+
+    $('#APIBlunder').on('click', function () {
+      console.log('l')
+      $.ajax({
+        url: 'https://chessblunders.org/api/mobile/api/blunders/get',
+        crossDomain: true,
+        data: {
+          token: 'oe21sdaiopj3irfs'
+        },
+        onSuccess: function (result) {
+          console.log('ajax works!')
+        },
+        onFail: function (result) {
+          console.log('ajax doesnt works!')
+        }
+      });
+    })
+    $('#clearButton').on('click', function () {
+      removeAllHighlights()
+      board.clear()
+      game.clear()
+    })
+    $('#startPos').on('click', function () {
+      puzzleInProgress = false
+      removeAllHighlights()
+      game.reset()
+      board.start()
+    })
+    $('#Puzzle').on('click', function () {
+      console.log("fine")
+      removeAllHighlights()
+      loadPuzzle()
+    })
+    $('#goBack').on('click', function () {
+      if (!puzzleInProgress) {
+        removeAllHighlights()
+        game.undo()
+        board.position(game.fen())
+      }
+    })
+    $('#Hint').on('click', function () {
+      if (puzzleInProgress) {
+        $board.find('.square-' + puzzle.solutions[number][counter].toString().substring(0, 2)).addClass('highlight-hint')
+        $board.find('.square-' + puzzle.solutions[number][counter].toString().substring(2, 4)).addClass('highlight-hint')
+
+      }
+      updateStatus()
+    }
+    )
+    updateStatus()
+
+  </script>
+
+
+</body>
+
+</html>
